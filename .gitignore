@@ -1,0 +1,27 @@
+# Dépendances
+node_modules/
+
+# Variables d'environnement (SECRET !)
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# Uploads utilisateurs (générés)
+uploads/*
+!uploads/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Tests temporaires
+fixFredy.js
+cleanProducts.js
