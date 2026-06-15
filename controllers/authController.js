@@ -9,10 +9,12 @@ import genererToken from "../utils/genererToken.js";
 export const inscription = asyncHandler(async (req, res) => {
   const { nom, email, telephone, password, codeParrainage } = req.body;
 
-  // 1. Vérifier que tous les champs sont remplis
-  if (!nom || !email || !telephone || !password) {
+  // 1. Vérifier que tous les champs sont remplis (CODE PARRAINAGE OBLIGATOIRE)
+  if (!nom || !email || !telephone || !password || !codeParrainage) {
     res.status(400);
-    throw new Error("Tous les champs sont obligatoires");
+    throw new Error(
+      "Tous les champs sont obligatoires, y compris le code de parrainage"
+    );
   }
 
   // 2. Vérifier que l'email n'existe pas déjà
@@ -29,22 +31,20 @@ export const inscription = asyncHandler(async (req, res) => {
     throw new Error("Ce numéro est déjà utilisé");
   }
 
-  // 4. Vérifier le code de parrainage (s'il est fourni)
-  let parrainId = null;
-  if (codeParrainage) {
-    const parrain = await User.findOne({ codeParrainage });
-    if (!parrain) {
-      res.status(400);
-      throw new Error("Code de parrainage invalide");
-    }
-    parrainId = parrain._id;
-
-    // Incrémenter le compteur du parrain
-    parrain.totalInvites += 1;
-    await parrain.save();
+  // 4. Vérifier le code de parrainage (OBLIGATOIRE)
+  const codeNet = codeParrainage.trim().toUpperCase();
+  const parrain = await User.findOne({ codeParrainage: codeNet });
+  if (!parrain) {
+    res.status(400);
+    throw new Error("Code de parrainage invalide ou inexistant");
   }
+  const parrainId = parrain._id;
 
-  // 5. Générer un code de parrainage unique
+  // Incrémenter le compteur du parrain
+  parrain.totalInvites += 1;
+  await parrain.save();
+
+  // 5. Générer un code de parrainage unique pour le nouveau user
   let nouveauCode;
   let codeUnique = false;
   while (!codeUnique) {
