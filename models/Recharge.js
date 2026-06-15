@@ -11,27 +11,35 @@ const rechargeSchema = new mongoose.Schema(
     montant: {
       type: Number,
       required: true,
-      min: 1000, // Minimum 1000 XAF
+      min: 1000,
     },
 
     methode: {
       type: String,
-      enum: ["MTN", "ORANGE", "AUTRE"],
+      enum: ["MTN", "ORANGE"],
       required: true,
     },
 
+    // Numéro de l'agent KREON qui a reçu le paiement
+    numeroAgent: {
+      type: String,
+      default: "",
+    },
+
+    // Numéro Mobile Money de l'user qui a payé (depuis lequel le paiement vient)
     numeroPayeur: {
       type: String,
       required: true,
     },
 
-    // Numéro de transaction Mobile Money fourni par l'utilisateur
+    // ⭐ Numéro de transaction OBLIGATOIRE (fourni par MTN/Orange)
     referencePaiement: {
       type: String,
-      default: "",
+      required: true,
+      trim: true,
     },
 
-    // Preuve de paiement (URL de l'image uploadée)
+    // Preuve image OPTIONNELLE (URL de l'image uploadée)
     preuvePaiement: {
       type: String,
       default: "",
@@ -43,13 +51,17 @@ const rechargeSchema = new mongoose.Schema(
       default: "EN_ATTENTE",
     },
 
-    // Commentaire admin (raison du refus, etc.)
+    // Validation auto via matching numéros
+    valideeAutomatiquement: {
+      type: Boolean,
+      default: false,
+    },
+
     commentaireAdmin: {
       type: String,
       default: "",
     },
 
-    // Qui a validé/refusé
     valideePar: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -62,6 +74,9 @@ const rechargeSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Index pour recherche rapide par référence
+rechargeSchema.index({ referencePaiement: 1, statut: 1 });
 
 const Recharge = mongoose.model("Recharge", rechargeSchema);
 export default Recharge;

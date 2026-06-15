@@ -19,6 +19,8 @@ import { demarrerCronJobs } from "./utils/cronJobs.js";
 import coffreRoutes from "./routes/coffreRoutes.js";
 import tirageRoutes from "./routes/tirageRoutes.js";
 import vipRoutes from "./routes/vipRoutes.js";
+import settingsRoutes from "./routes/settingsRoutes.js";
+import transactionMatchRoutes from "./routes/transactionMatchRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -51,6 +53,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/coffre", coffreRoutes);
 app.use("/api/tirage", tirageRoutes);
 app.use("/api/vip", vipRoutes);
+app.use("/api/settings", settingsRoutes);
+app.use("/api/admin/transaction-references", transactionMatchRoutes);
 // ===== MIDDLEWARES D'ERREUR (TOUJOURS EN DERNIER) =====
 app.use(notFound);
 app.use(errorHandler);

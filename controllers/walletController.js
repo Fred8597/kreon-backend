@@ -19,16 +19,19 @@ export const getSolde = asyncHandler(async (req, res) => {
   res.json(user);
 });
 
-// @desc    Demander une recharge
+// @desc    Demander une recharge (numéro transaction OBLIGATOIRE)
 // @route   POST /api/wallet/recharge
 // @access  Privé
 export const demanderRecharge = asyncHandler(async (req, res) => {
   const { montant, methode, numeroPayeur, referencePaiement, preuvePaiement } =
     req.body;
 
-  if (!montant || !methode || !numeroPayeur) {
+  // Validations
+  if (!montant || !methode || !numeroPayeur || !referencePaiement) {
     res.status(400);
-    throw new Error("Montant, méthode et numéro requis");
+    throw new Error(
+      "Montant, méthode, numéro et référence de paiement sont obligatoires"
+    );
   }
 
   if (montant < 1000) {
@@ -36,18 +39,107 @@ export const demanderRecharge = asyncHandler(async (req, res) => {
     throw new Error("Le montant minimum est de 1000 XAF");
   }
 
+  // Nettoyer la référence
+  const refNet = referencePaiement.trim();
+
+  // Vérifier qu'aucune recharge n'a la même référence (anti-doublon)
+  const Recharge = (await import("../models/Recharge.js")).default;
+  const existante = await Recharge.findOne({
+    referencePaiement: refNet,
+  });
+
+  if (existante) {
+    res.status(400);
+    throw new Error(
+      "Ce numéro de transaction a déjà été utilisé pour une recharge"
+    );
+  }
+
+  // Récupérer config pour le numéro agent
+  const Settings = (await import("../models/Settings.js")).default;
+  const settings = await Settings.getInstance();
+  const numeroAgent =
+    methode === "MTN" ? settings.numeroAgentMTN : settings.numeroAgentORANGE;
+
+  // Créer la recharge
   const recharge = await Recharge.create({
     userId: req.user._id,
     montant,
     methode,
+    numeroAgent,
     numeroPayeur,
-    referencePaiement,
-    preuvePaiement,
+    referencePaiement: refNet,
+    preuvePaiement: preuvePaiement || "",
   });
 
+  // ===== MATCHING AUTO =====
+  // Vérifier si ce numéro de transaction existe déjà dans l'inventaire admin
+  const TransactionReference = (
+    await import("../models/TransactionReference.js")
+  ).default;
+
+  const refAdmin = await TransactionReference.findOne({
+    referencePaiement: refNet,
+    methode,
+    utilise: false,
+  });
+
+  if (refAdmin) {
+    // MATCH ! On valide automatiquement
+    const User = (await import("../models/User.js")).default;
+    const Transaction = (await import("../models/Transaction.js")).default;
+    const { creerNotification } = await import(
+      "../utils/creerNotification.js"
+    );
+
+    const user = await User.findById(req.user._id);
+    const soldeAvant = user.soldePrincipal;
+    user.soldePrincipal += montant;
+    await user.save();
+
+    recharge.statut = "VALIDEE";
+    recharge.valideeAutomatiquement = true;
+    recharge.dateValidation = new Date();
+    await recharge.save();
+
+    refAdmin.utilise = true;
+    refAdmin.rechargeId = recharge._id;
+    await refAdmin.save();
+
+    await Transaction.create({
+      userId: user._id,
+      type: "RECHARGE",
+      montant,
+      soldeAvant,
+      soldeApres: user.soldePrincipal,
+      description: `Recharge auto-validée (${methode}) - Ref: ${refNet}`,
+      referenceId: recharge._id,
+      referenceType: "Recharge",
+      statut: "COMPLETEE",
+    });
+
+    await creerNotification({
+      userId: user._id,
+      type: "RECHARGE_VALIDEE",
+      titre: "⚡ Recharge auto-validée !",
+      message: `Votre recharge de ${montant} XAF (${methode}) a été automatiquement validée et créditée. Référence : ${refNet}`,
+      lien: "/recharges",
+      montant,
+    });
+
+    return res.status(201).json({
+      message: "🎉 Recharge automatiquement validée et créditée !",
+      recharge,
+      autoValidee: true,
+    });
+  }
+
+  // Pas de match → en attente
   res.status(201).json({
-    message: "Demande de recharge envoyée. En attente de validation.",
+    message:
+      "Demande de recharge envoyée. Elle sera validée dès que l'admin recevra votre transaction.",
     recharge,
+    autoValidee: false,
   });
 });
 
