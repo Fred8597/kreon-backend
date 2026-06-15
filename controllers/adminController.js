@@ -323,3 +323,39 @@ export const modifierSolde = asyncHandler(async (req, res) => {
     },
   });
 });
+
+// @desc    Compteur des tâches admin en attente (cloche)
+// @route   GET /api/admin/notifications/compteur
+// @access  Admin
+export const getCompteurAdminNotifs = asyncHandler(async (req, res) => {
+  const rechargesEnAttente = await Recharge.countDocuments({
+    statut: "EN_ATTENTE",
+  });
+
+  const retraitsEnAttente = await Withdrawal.countDocuments({
+    statut: "EN_ATTENTE",
+  });
+
+  res.json({
+    rechargesEnAttente,
+    retraitsEnAttente,
+    total: rechargesEnAttente + retraitsEnAttente,
+  });
+});
+
+// @desc    Aperçu des tâches en attente (5 dernières)
+// @route   GET /api/admin/notifications/apercu
+// @access  Admin
+export const getApercuTaches = asyncHandler(async (req, res) => {
+  const recharges = await Recharge.find({ statut: "EN_ATTENTE" })
+    .populate("userId", "nom telephone")
+    .sort({ createdAt: -1 })
+    .limit(5);
+
+  const retraits = await Withdrawal.find({ statut: "EN_ATTENTE" })
+    .populate("userId", "nom telephone")
+    .sort({ createdAt: -1 })
+    .limit(5);
+
+  res.json({ recharges, retraits });
+});

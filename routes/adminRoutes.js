@@ -14,6 +14,8 @@ import {
   modifierRole,
   toggleStatutUser,
   modifierSolde,
+  getCompteurAdminNotifs,
+  getApercuTaches,
 } from "../controllers/adminController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { admin } from "../middleware/adminMiddleware.js";
@@ -22,6 +24,10 @@ const router = express.Router();
 
 // Dashboard
 router.get("/dashboard", protect, admin, getDashboard);
+
+// Notifications admin (cloche)
+router.get("/notifications/compteur", protect, admin, getCompteurAdminNotifs);
+router.get("/notifications/apercu", protect, admin, getApercuTaches);
 
 // Gestion utilisateurs
 router.get("/users", protect, admin, getAllUsers);
