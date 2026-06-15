@@ -16,6 +16,7 @@ import {
   modifierSolde,
   getCompteurAdminNotifs,
   getApercuTaches,
+  resetPasswordUser,
 } from "../controllers/adminController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { admin } from "../middleware/adminMiddleware.js";
@@ -35,6 +36,7 @@ router.get("/users/:id", protect, admin, getUserById);
 router.put("/users/:id/role", protect, admin, modifierRole);
 router.put("/users/:id/statut", protect, admin, toggleStatutUser);
 router.put("/users/:id/solde", protect, admin, modifierSolde);
+router.put("/users/:id/reset-password", protect, admin, resetPasswordUser);
 
 // Recharges
 router.get("/recharges", protect, admin, getAllRecharges);

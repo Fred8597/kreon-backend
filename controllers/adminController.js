@@ -5,6 +5,7 @@ import Investment from "../models/Investment.js";
 import Transaction from "../models/Transaction.js";
 import Recharge from "../models/Recharge.js";
 import Withdrawal from "../models/Withdrawal.js";
+import { creerNotification } from "../utils/creerNotification.js";
 
 // @desc    Dashboard admin : stats globales
 // @route   GET /api/admin/dashboard
@@ -358,4 +359,61 @@ export const getApercuTaches = asyncHandler(async (req, res) => {
     .limit(5);
 
   res.json({ recharges, retraits });
+});
+
+// @desc    Réinitialiser le mot de passe d'un user (admin)
+// @route   PUT /api/admin/users/:id/reset-password
+// @access  Admin
+export const resetPasswordUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("Utilisateur non trouvé");
+  }
+
+  // Empêcher de reset un autre admin (sécurité)
+  if (user.role === "admin" && user._id.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error("Vous ne pouvez pas réinitialiser le mot de passe d'un autre admin");
+  }
+
+  // Générer un mot de passe temporaire aléatoire
+  const genererPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let pwd = "KRN-";
+    for (let i = 0; i < 6; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pwd;
+  };
+
+  const nouveauPassword = genererPassword();
+
+  // Mettre à jour (le hook pre-save du modèle va le hasher automatiquement)
+  user.password = nouveauPassword;
+  await user.save();
+
+  // Notification au user (optionnelle, car il ne peut pas se connecter)
+  try {
+    await creerNotification({
+      userId: user._id,
+      type: "SYSTEM",
+      titre: "🔐 Mot de passe réinitialisé",
+      message: `Un administrateur a réinitialisé votre mot de passe. Contactez le support pour le récupérer.`,
+    });
+  } catch (e) {
+    // silencieux
+  }
+
+  res.json({
+    message: `Mot de passe de ${user.nom} réinitialisé avec succès`,
+    nouveauPassword,
+    user: {
+      _id: user._id,
+      nom: user.nom,
+      telephone: user.telephone,
+      email: user.email,
+    },
+  });
 });
